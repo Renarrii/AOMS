@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List, Dict, Any, AsyncIterator
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel
-import rabbitmq
+from src import rabbitmq
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from sqlalchemy import String, Integer, Boolean, select
