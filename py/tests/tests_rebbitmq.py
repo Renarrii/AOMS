@@ -3,7 +3,7 @@ import pytest
 import pytest_asyncio
 from typing import AsyncIterator, Dict, Any
 from unittest.mock import AsyncMock, patch
-import src.rabbitmq
+from src import rabbitmq
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -32,7 +32,7 @@ async def mock_channel() -> AsyncIterator[AsyncMock]:
 @pytest.mark.asyncio
 async def test_init_rabbitmq() -> None:
     """Test verifying RabbitMQ initialization using mocked connection and queues."""
-    with patch("rabbitmq.aio_pika.connect_robust", new_callable=AsyncMock) as mock_connect:
+    with patch("src.rabbitmq.aio_pika.connect_robust", new_callable=AsyncMock) as mock_connect:
         mock_conn: AsyncMock = AsyncMock()
         mock_channel_instance: AsyncMock = AsyncMock()
         mock_queue: AsyncMock = AsyncMock()
@@ -63,7 +63,7 @@ async def test_publish_order(mock_channel: AsyncMock) -> None:
         "action": "ADD"
     }
 
-    with patch("rabbitmq.aio_pika.Message") as mock_message_class:
+    with patch("src.rabbitmq.aio_pika.Message") as mock_message_class:
         mock_msg_instance: AsyncMock = AsyncMock()
         mock_message_class.return_value = mock_msg_instance
 
