@@ -1,23 +1,23 @@
 # Microservices Trading & Matching Engine 🚀
 
-Wydajny, rozproszony system giełdowy składający się z asynchronicznej bramy API (Python) oraz ultraszybkiego silnika dopasowującego zlecenia (C++). Serwisy komunikują się ze sobą asynchronicznie za pomocą RabbitMQ w architekturze sterowanej zdarzeniami (Event-Driven). 
+A high-performance, distributed exchange system consisting of an asynchronous API gateway (Python) and an ultra-fast order matching engine (C++). The services communicate asynchronously using RabbitMQ in an Event-Driven architecture.
 
-Projekt wdraża zaawansowane wzorce projektowe, takie jak **Transactional Outbox**, rozwiązując problem rozproszonej spójności danych pomiędzy relacyjną bazą danych a brokerem wiadomości.
+The project implements advanced design patterns, such as the **Transactional Outbox**, solving the problem of distributed data consistency between a relational database and a message broker.
 
-## 🏗 Schemat Architektury
+## 🏗 Architecture Diagram
 
 ```mermaid
 graph TD
-    Client([Klient / Trader]) <-->|REST API & WebSockets| API[FastAPI Gateway Python]
+    Client([Client / Trader]) <-->|REST API & WebSockets| API[FastAPI Gateway Python]
     
-    subgraph Brama API Python
-        API -->|Zapis Zlecenia| DB[(SQLite Zlecenia)]
-        API -->|Zapis Zdarzenia| Outbox[(SQLite Outbox)]
+    subgraph Python API Gateway
+        API -->|Save Order| DB[(SQLite Orders)]
+        API -->|Save Event| Outbox[(SQLite Outbox)]
         Outbox -.->|Worker| Pub[RabbitMQ Publisher]
     end
 
     subgraph Message Broker RabbitMQ
-        Pub -->|Zlecenia| OQ([orders_queue])
+        Pub -->|Orders| OQ([orders_queue])
         TQ([trades_queue])
         EQ([execution_reports_queue])
     end
@@ -25,105 +25,105 @@ graph TD
     subgraph Matching Engine C++
         OQ --> Cons[RabbitMQ Consumer]
         Cons --> Engine[Matching Engine]
-        Engine -->|Nowe transakcje| TQ
-        Engine -->|Statusy zlecen| EQ
+        Engine -->|New trades| TQ
+        Engine -->|Order statuses| EQ
     end
 
-    TQ -->|Rozglaszanie WS| API
-    EQ -->|Aktualizacja bazy i WS| API
+    TQ -->|WS Broadcasting| API
+    EQ -->|Database and WS update| API
 ```
 
-## ✨ Główne funkcjonalności
+## ✨ Key Features
 
-* **Silnik Dopasowujący (C++):** Obsługa zleceń typu `LIMIT` i `MARKET`. Logika biznesowa oparta na strukturach `std::map` do błyskawicznego odnajdywania najlepszych ofert i obsługi częściowych realizacji zleceń (partial fills).
-* **Asynchroniczne API (Python):** Zbudowane w FastAPI, przyjmujące zlecenia REST (`POST`, `PUT`, `DELETE`). Zarządza połączeniami WebSocket za pomocą dedykowanego `ConnectionManager` do rozgłaszania danych rynkowych w czasie rzeczywistym.
-* **Transactional Outbox Pattern:** Gwarancja niezawodnego dostarczenia komunikatów. Zlecenia najpierw trafiają do bazy danych SQLite, a asynchroniczny worker bezpiecznie wysyła je do RabbitMQ.
-* **Architektura Event-Driven:** Pełne odseparowanie API od logiki silnika poprzez asynchroniczne kolejki RabbitMQ. Użycie klienta `rabbitmq-c` w C++ oraz biblioteki `aio_pika` w Pythonie.
+- **Matching Engine (C++):** Supports `LIMIT` and `MARKET` orders. Business logic is based on `std::map` structures for lightning-fast retrieval of the best offers and handling of partial fills.
+- **Asynchronous API (Python):** Built with FastAPI, accepting REST orders (`POST`, `PUT`, `DELETE`). It manages WebSocket connections using a dedicated `ConnectionManager` to broadcast real-time market data.
+- **Transactional Outbox Pattern:** Guarantees reliable message delivery. Orders are first saved to an SQLite database, and an asynchronous worker safely publishes them to RabbitMQ.
+- **Event-Driven Architecture:** Complete decoupling of the API from the engine logic through asynchronous RabbitMQ queues. Utilizes the `rabbitmq-c` client in C++ and the `aio_pika` library in Python.
 
-## 🛠 Użyte Technologie
+## 🛠 Technologies Used
 
 **Backend & API:**
-* **Python 3.10+**
-* **FastAPI** – Asynchroniczny framework webowy do obsługi REST API i WebSockets.
-* **SQLAlchemy (Async)** – ORM do zarządzania stanem zleceń i modelem Outbox.
-* **Pydantic** – Walidacja struktur danych i schematów żądań.
-* **aiosqlite** – Asynchroniczny sterownik bazy danych SQLite.
+- **Python 3.10+**
+- **FastAPI** – Asynchronous web framework for handling REST API and WebSockets.
+- **SQLAlchemy (Async)** – ORM for managing order states and the Outbox model.
+- **Pydantic** – Data structure and request schema validation.
+- **aiosqlite** – Asynchronous SQLite database driver.
 
-**Silnik Dopasowujący (Matching Engine):**
-* **C++ (C++17)** – Logika biznesowa i operacje na pamięci.
-* **rabbitmq-c** – Zoptymalizowany klient RabbitMQ dla języka C.
-* **nlohmann/json** – Biblioteka do serializacji i deserializacji wiadomości JSON.
+**Matching Engine:**
+- **C++ (C++17)** – Business logic and memory operations.
+- **rabbitmq-c** – Optimized RabbitMQ client for C.
+- **nlohmann/json** – Library for JSON message serialization and deserialization.
 
-**Infrastruktura & QA:**
-* **RabbitMQ** – Niezawodny broker wiadomości (kolejki *durable*).
-* **Pytest & pytest-asyncio** – Testy jednostkowe asynchronicznego API (z mockowaniem WebSockets i RabbitMQ).
-* **Google Test (GTest)** – Framework do testowania logiki biznesowej C++.
+**Infrastructure & QA:**
+- **RabbitMQ** – Reliable message broker (*durable* queues).
+- **Pytest & pytest-asyncio** – Unit tests for the asynchronous API (with WebSocket and RabbitMQ mocking).
+- **Google Test (GTest)** – Testing framework for C++ business logic.
 
 ---
 
-## 📂 Struktura Projektu
+## 📂 Project Structure
 
 ```text
 .
 ├── src/
 │   ├── python/
-│   │   ├── main.py              # Aplikacja FastAPI (Endpoints, WebSockets, Outbox)
-│   │   └── rabbitmq.py          # Konfiguracja asynchronicznego RabbitMQ
+│   │   ├── main.py              # FastAPI application (Endpoints, WebSockets, Outbox)
+│   │   └── rabbitmq.py          # Asynchronous RabbitMQ configuration
 │   └── cpp/
-│       ├── main.cpp             # Punkt wejścia dla C++ (Inicjalizacja silnika i RabbitMQ)
-│       ├── MatchingEngine.cpp   # Routing zleceń do odpowiednich instrumentów
-│       ├── OrderBook.cpp        # Logika dopasowywania (bids/asks)
-│       ├── RabbitMQConsumer.cpp # Nasłuchiwanie zleceń
-│       ├── RabbitMQPublisher.cpp# Publikacja wyników
-│       └── Utils.cpp            # Ładowanie .env
-├── include/                     # Pliki nagłówkowe C++
+│       ├── main.cpp             # C++ entry point (Engine and RabbitMQ initialization)
+│       ├── MatchingEngine.cpp   # Routing orders to appropriate instruments
+│       ├── OrderBook.cpp        # Matching logic (bids/asks)
+│       ├── RabbitMQConsumer.cpp # Listening for orders
+│       ├── RabbitMQPublisher.cpp# Publishing results
+│       └── Utils.cpp            # Loading .env
+├── include/                     # C++ header files
 │   ├── MatchingEngine.hpp
 │   ├── OrderBook.hpp
-│   ├── models.hpp               # Modele danych C++
+│   ├── models.hpp               # C++ data models
 │   ├── RabbitMQCommon.hpp
 │   ├── RabbitMQConsumer.hpp
 │   └── RabbitMQPublisher.hpp
 └── tests/
-    ├── python/                  # Testy FastAPI i wzorca Outbox (pytest)
-    └── cpp/                     # Testy silnika (GTest)
+    ├── python/                  # FastAPI and Outbox pattern tests (pytest)
+    └── cpp/                     # Engine tests (GTest)
 ```
 
 ---
 
-## 🚀 Uruchomienie lokalne (bez Dockera)
+## 🚀 Local Run (without Docker)
 
-Aby uruchomić projekt natywnie, musisz mieć zainstalowane w systemie: Pythona 3.10+, kompilator C++ (z obsługą C++17), biblioteki `rabbitmq-c` i `nlohmann-json` oraz działający lokalnie serwer RabbitMQ.
+To run the project natively, you must have installed on your system: Python 3.10+, a C++ compiler (with C++17 support), the `rabbitmq-c` and `nlohmann-json` libraries, and a locally running RabbitMQ server.
 
-### 1. Wymagania systemowe (przykład dla Ubuntu/Debian)
+### 1. System Requirements (example for Ubuntu/Debian)
 ```bash
 sudo apt update
 sudo apt install rabbitmq-server g++ make librabbitmq-dev nlohmann-json3-dev python3-pip python3-venv
 ```
-Upewnij się, że usługa RabbitMQ działa:
+Ensure the RabbitMQ service is running:
 ```bash
 sudo systemctl start rabbitmq-server
 ```
 
-### 2. Konfiguracja i uruchomienie API (Python)
-W terminalu pierwszym skonfiguruj środowisko wirtualne i uruchom backend:
+### 2. API Setup and Execution (Python)
+In the first terminal, configure the virtual environment and start the backend:
 ```bash
-# Utworzenie i aktywacja środowiska wirtualnego
+# Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Instalacja zależności
+# Install dependencies
 pip install fastapi uvicorn sqlalchemy aiosqlite aio-pika pydantic
 
-# Ustawienie zmiennej środowiskowej i uruchomienie serwera
+# Set environment variable and start the server
 export PYTHONPATH=$(pwd)
 uvicorn src.python.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-Aplikacja oraz dokumentacja Swagger UI będą dostępne pod adresem: `http://localhost:8000/docs`
+The application and Swagger UI documentation will be available at: `http://localhost:8000/docs`
 
-### 3. Kompilacja i uruchomienie Silnika (C++)
-W terminalu drugim skompiluj kod silnika i połącz go z biblioteką RabbitMQ:
+### 3. Engine Compilation and Execution (C++)
+In the second terminal, compile the engine code and link it with the RabbitMQ library:
 ```bash
-# Kompilacja silnika
+# Compile the engine
 g++ -std=c++17 \
     src/cpp/main.cpp \
     src/cpp/MatchingEngine.cpp \
@@ -133,6 +133,6 @@ g++ -std=c++17 \
     src/cpp/Utils.cpp \
     -I./include -lrabbitmq -o matching_engine
 
-# Uruchomienie skompilowanego programu
+# Run the compiled program
 ./matching_engine
 ```
