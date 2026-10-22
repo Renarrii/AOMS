@@ -10,26 +10,26 @@ Projekt wdraża zaawansowane wzorce projektowe, takie jak **Transactional Outbox
 graph TD
     Client([Klient / Trader]) <-->|REST API & WebSockets| API[FastAPI Gateway Python]
     
-    subgraph "Brama API (Python)"
-        API -->|Zapis Zlecenia (Transakcja)| DB[(SQLite: Zlecenia)]
-        API -->|Zapis Zdarzenia (Transakcja)| Outbox[(SQLite: Outbox Events)]
-        Outbox -.->|Background Worker| Pub[RabbitMQ Publisher]
+    subgraph Brama API Python
+        API -->|Zapis Zlecenia| DB[(SQLite Zlecenia)]
+        API -->|Zapis Zdarzenia| Outbox[(SQLite Outbox)]
+        Outbox -.->|Worker| Pub[RabbitMQ Publisher]
     end
 
-    subgraph "Message Broker (RabbitMQ)"
-        Pub -->|Zlecenia (ADD/CANCEL/MODIFY)| OQ>orders_queue]
-        TQ>trades_queue]
-        EQ>execution_reports_queue]
+    subgraph Message Broker RabbitMQ
+        Pub -->|Zlecenia| OQ([orders_queue])
+        TQ([trades_queue])
+        EQ([execution_reports_queue])
     end
 
-    subgraph "Matching Engine (C++)"
+    subgraph Matching Engine C++
         OQ --> Cons[RabbitMQ Consumer]
-        Cons --> Engine[OrderBook & Matching Engine]
+        Cons --> Engine[Matching Engine]
         Engine -->|Nowe transakcje| TQ
-        Engine -->|Statusy zleceń| EQ
+        Engine -->|Statusy zlecen| EQ
     end
 
-    TQ -->|Rozgłaszanie (WS)| API
+    TQ -->|Rozglaszanie WS| API
     EQ -->|Aktualizacja bazy i WS| API
 ```
 
